@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sage Space — Merged v4.5 (Ghost Garden + Freud + Per‑Ghost Citations)</title>
+<style>
+  :root{ --bg:#0b0a10; --ink:#e9e9f1; --muted:#a3a3b3; --accent:#8b5cf6; --mint:#22c55e; --danger:#ef4444; --gold:#eab308;}
+  html,body{height:100%; margin:0; background:radial-gradient(1200px 800px at 70% -10%, #1a1930 0%, #0b0a10 60%); color:var(--ink); font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,"Noto Sans","Apple Color Emoji","Segoe UI Emoji");}
+  .wrap{max-width:1180px; margin:0 auto; padding:24px;}
+  .card{background:linear-gradient(180deg,#191832, #111026); border:1px solid #2a2845; box-shadow:0 10px 40px rgba(0,0,0,.45); border-radius:18px; padding:18px;}
+  .row{display:flex; gap:16px; flex-wrap:wrap;}
+  .col{flex:1 1 320px; min-width:300px}
+  .title{font-size:24px; font-weight:800}
+  .muted{color:var(--muted)}
+  .btn{background:var(--accent); color:white; border:none; padding:10px 14px; border-radius:12px; font-weight:700; cursor:pointer}
+  .btn.secondary{background:#2b2a44}
+  .btn.ghost{background:transparent; border:1px solid #343255}
+  .btn.danger{background:var(--danger)}
+  .btn.warn{background:var(--gold); color:black}
+  input, textarea{background:#0f0e1c; color:var(--ink); border:1px solid #2a2845; border-radius:12px; padding:12px; width:100%}
+  .pill{display:inline-flex; gap:8px; align-items:center; background:#1c1a35; border:1px solid #302d55; color:#d6d6ee; padding:6px 10px; border-radius:999px; font-size:12px; margin:4px 6px 0 0}
+  .ghosts{display:grid; grid-template-columns: repeat(auto-fill,minmax(170px,1fr)); gap:12px; perspective:1000px}
+  .ghost{position:relative; background:linear-gradient(180deg,#1c1b33,#141329); border:1px solid #2e2b52; padding:12px; border-radius:16px; cursor:pointer; transition:transform .15s ease, box-shadow .2s ease; transform-style:preserve-3d; overflow:hidden}
+  .ghost:hover{box-shadow:0 14px 40px rgba(139,92,246,.25)}
+  .ghost .emoji{font-size:28px; transform:translateZ(20px)}
+  .ghost .name{font-weight:800; transform:translateZ(16px)}
+  .ghost .tags{font-size:11px; color:#bdbdd4; transform:translateZ(12px)}
+  .ghost .aura{position:absolute; inset:-30%; background:radial-gradient(220px 120px at var(--mx,50%) var(--my,50%), rgba(139,92,246,.18), transparent 60%); pointer-events:none; mix-blend:screen; transition:.12s ease opacity; opacity:.8}
+  .floaters{position:absolute; inset:0; pointer-events:none}
+  .floater{position:absolute; font-size:10px; padding:3px 8px; border-radius:999px; border:1px solid #403c70; background:#1a1836; color:#d6d6ee; animation:orbit 8s linear infinite; transform-origin:50% 50%}
+  @keyframes orbit{ 0%{ transform: translate(var(--x,0), var(--y,0)) rotate(0deg) translate(12px) rotate(0deg); opacity:.6}
+                     50%{ opacity:1}
+                     100%{ transform: translate(var(--x,0), var(--y,0)) rotate(360deg) translate(12px) rotate(-360deg); opacity:.6} }
+  .toolbar{display:flex; gap:8px; flex-wrap:wrap}
+  .area{min-height:120px}
+  .resp{white-space:pre-wrap; background:#0f0e1d; border:1px dashed #35335c; padding:12px; border-radius:12px}
+  .scene{width:100%; height:280px; border-radius:14px; overflow:hidden; border:1px solid #2f2c55; background:#0b0b16; position:relative}
+  canvas#gl{width:100%; height:100%; display:block}
+  canvas#particles{position:absolute; inset:0; pointer-events:none}
+  canvas#sprites{position:absolute; inset:0; pointer-events:none}
+  .freudBar{display:flex; gap:12px; align-items:center; margin-top:10px}
+  .freud{display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:14px; border:1px solid #3a366a; background:linear-gradient(180deg,#1a1836,#13122a)}
+  .freud .avatar{font-size:28px; animation:floaty 3.5s ease-in-out infinite}
+  .freud .box{font-size:24px; padding:6px 10px; border-radius:10px; border:1px solid #3a366a; background:#161533; cursor:pointer; transition:transform .2s ease}
+  .freud .box.open{transform:translateY(-2px) scale(1.04); box-shadow:0 10px 30px rgba(139,92,246,.35)}
+  @keyframes floaty { 0%{ transform:translateY(0px)} 50%{ transform:translateY(-4px)} 100%{ transform:translateY(0px)} }
+  .footer{opacity:.7; font-size:12px; margin-top:14px}
+  .modal{position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:40}
+  .modal .inner{background:#14122a; border:1px solid #2f2c55; border-radius:14px; padding:16px; max-width:920px; max-height:80vh; overflow:auto}
+  .lock-on *{user-select:none}
+  .seed{border:1px solid #2a2845; padding:10px; border-radius:12px; margin:8px 0; background:#151432}
+  .badge{display:inline-block; font-size:11px; border:1px solid #3b3868; padding:2px 8px; border-radius:999px; margin-left:8px; background:#1a1938}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="row">
+    <div class="col">
+      <div class="card">
+        <div class="title">Sage Space <span class="muted">— Merged v4.5</span> <span class="badge">offline</span></div>
+        <p class="muted" id="status">Ghosts tend the brain • Freud animates • Cthulhu whispers • Per‑ghost citations.</p>
+
+        <div class="scene" id="scene">
+          <canvas id="gl"></canvas>
+          <canvas id="particles"></canvas>
+          <canvas id="sprites"></canvas>
+        </div>
+
+        <div class="freudBar">
+          <div class="freud">
+            <div class="avatar" id="freudAvatar">🧔‍♂️‍💼</div>
+            <div>
+              <div style="font-weight:800">Freud</div>
+              <div class="muted" style="font-size:12px">“Sometimes a ghost is just a ghost.”</div>
+            </div>
+            <div class="box" id="freudBox" title="Open Ghost Box">📦</div>
+          </div>
+          <div class="toolbar">
+            <button class="btn ghost" id="aboutBtn">About & References</button>
+            <button class="btn ghost" id="legalBtn">Legal</button>
+            <label class="pill"><input type="checkbox" id="lockToggle" /> Lock copy</label>
+            <button class="btn ghost" id="clearCache">Clear cache</button>
+            <button class="btn ghost" id="exportSeeds">Export seeds</button>
+            <button class="btn ghost" id="importSeeds">Import seeds</button>
+            <button class="btn" id="citationsBtn">Citations</button>
+            <button class="btn warn" id="donateBtn">Donate (Venmo)</button>
+          </div>
+        </div>
+
+        <div style="margin-top:12px">
+          <textarea id="question" class="area" placeholder="Ask anything (e.g., 'How do I stop comparing myself to others?')"></textarea>
+          <div style="display:flex; gap:8px; margin-top:8px">
+            <button class="btn" id="plantSeed">Plant in Garden</button>
+            <button class="btn secondary" id="getSuggestions">Suggest keywords</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="card grid">
+        <div class="title">Ghost Buddies</div>
+        <div id="ghostGrid" class="ghosts"></div>
+        <div class="footer">Hover for aura & orbiting keywords — click for answers.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row" style="margin-top:16px">
+    <div class="col">
+      <div class="card">
+        <div class="title">Brain Garden</div>
+        <div class="muted">Seeds grow as you revisit. Ghosts water them.</div>
+        <div class="garden" id="garden"></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="card">
+        <div class="title">Response</div>
+        <div class="resp" id="response">Ask a question and click a ghost to see tailored guidance. Use the citations button for scholarly leads.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer muted">Victorian ✕ kawaii vibes. All data saved locally. <span class="badge">Educational only — not medical, legal, or financial advice.</span></div>
+</div>
+
+<!-- Modals -->
+<div class="modal" id="modal">
+  <div class="inner">
+    <div style="display:flex; justify-content:space-between; align-items:center">
+      <div style="font-weight:800">Citations</div>
+      <button class="btn ghost" id="closeModal">Close</button>
+    </div>
+    <p class="muted">Per‑ghost sources & search links (opens in new tab).</p>
+    <ul id="citeList"></ul>
+  </div>
+</div>
+
+<div class="modal" id="aboutModal">
+  <div class="inner">
+    <div style="display:flex; justify-content:space-between; align-items:center">
+      <div style="font-weight:800">About & References — Sage Space</div>
+      <button class="btn ghost" id="closeAbout">Close</button>
+    </div>
+    <div class="muted" style="margin-top:6px">Merged build notes: visuals from Portable v4 + richer per‑ghost responses and citations. Educational only.</div>
+    <ul>
+      <li><b>Ghost disciplines:</b> CBT, DBT, ACT, BCBA, Philosophy, Holistic, Spiritual, Logotherapy, Gestalt, Client‑Centered, MI, Interpersonal, Psychoanalytic, Cthulhu.</li>
+      <li><b>Garden/Brain:</b> Seeds (affirmations/goals) with visits; orbiting sprites; shader brain.</li>
+      <li><b>Citations:</b> Each ghost has curated PubMed/NIH searches and review articles you can open.</li>
+      <li><b>Packaging:</b> Single HTML (drag‑and‑drop to host). No tracking. Data stays in your browser.</li>
+      <li><b>Safety:</b> Non‑clinical, educational framing; copy‑lock option.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+/* === WebGL Brain & Particles (kept from v4) === */
+const glCanvas = document.getElementById('gl');
+const particlesCanvas = document.getElementById('particles');
+const spritesCanvas = document.getElementById('sprites');
+const gl = glCanvas.getContext('webgl');
+function resize(){
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const rect = glCanvas.getBoundingClientRect();
+  glCanvas.width = rect.width * dpr;
+  glCanvas.height = rect.height * dpr;
+  particlesCanvas.width = rect.width * dpr;
+  particlesCanvas.height = rect.height * dpr;
+  spritesCanvas.width = rect.width * dpr;
+  spritesCanvas.height = rect.height * dpr;
+  gl.viewport(0,0,glCanvas.width, glCanvas.height);
+}
+window.addEventListener('resize', resize);
+resize();
+
+const vertSrc = `
+attribute vec2 a;
+void main(){ gl_Position = vec4(a,0.0,1.0); }
+`;
+
+const fragSrc = `
+precision highp float;
+uniform vec2 uRes;
+uniform float uTime;
+uniform vec2 uMouse;
+#define PI 3.14159265359
+
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+float noise(vec2 p){
+  vec2 i=floor(p), f=fract(p);
+  float a=hash(i), b=hash(i+vec2(1.,0.)), c=hash(i+vec2(0.,1.)), d=hash(i+vec2(1.,1.));
+  vec2 u=f*f*(3.-2.*f);
+  return mix(a,b,u.x)+ (c-a)*u.y*(1.-u.x)+ (d-b)*u.x*u.y;
+}
+mat3 rotY(float a){ float c=cos(a), s=sin(a); return mat3(c,0.,s, 0.,1.,0., -s,0.,c); }
+mat3 rotX(float a){ float c=cos(a), s=sin(a); return mat3(1.,0.,0., 0.,c,-s, 0.,s,c); }
+float sdEllipsoid(vec3 p, vec3 r){ return (length(p/r) - 1.) * min(min(r.x,r.y), r.z); }
+
+float map(vec3 p){
+  float w = 0.25 * sin(3.0*p.x + uTime*0.9) * sin(3.0*p.y - uTime*1.1);
+  p += 0.05*vec3( sin(p.y*4.0+uTime), sin(p.z*4.0-uTime*1.3), sin(p.x*4.0+uTime*0.7) );
+  float d = sdEllipsoid(p, vec3(0.75,0.58,0.7)) + w*0.02;
+  return d;
+}
+
+vec3 calcNormal(vec3 p){
+  float e=0.002;
+  vec2 k=vec2(1,-1);
+  return normalize(k.xyy*map(p+k.xyy*e)+
+                   k.yyx*map(p+k.yyx*e)+
+                   k.yxy*map(p+k.yxy*e)+
+                   k.xxx*map(p+k.xxx*e));
+}
+
+vec3 pal(float t, vec3 a, vec3 b, vec3 c, vec3 d){ return a + b*cos(6.28318*(c*t+d)); }
+
+void main(){
+  vec2 uv = (gl_FragCoord.xy / uRes.xy)*2.0 - 1.0;
+  uv.x *= uRes.x/uRes.y;
+
+  float ang = uTime*0.35 + (uMouse.x-0.5)*1.0;
+  float elev = 0.3 + (uMouse.y-0.5)*0.6;
+  vec3 ro = vec3(1.8, 0.6, 1.8);
+  ro = rotY(ang) * rotX(elev) * ro;
+  vec3 ta = vec3(0.0, 0.0, 0.0);
+  vec3 ww = normalize(ta - ro);
+  vec3 uu = normalize(cross(vec3(0,1,0), ww));
+  vec3 vv = cross(ww, uu);
+  vec3 rd = normalize(uv.x*uu + uv.y*vv + 1.8*ww);
+
+  float t=0.0; float d=1.0; bool hit=false;
+  for(int i=0;i<120;i++){
+    vec3 p = ro + rd*t;
+    d = map(p);
+    if(d<0.001){ hit=true; break; }
+    t += d*0.8;
+    if(t>6.0) break;
+  }
+
+  vec3 col = vec3(0.02,0.02,0.06);
+  if(hit){
+    vec3 p = ro + rd*t;
+    vec3 n = calcNormal(p);
+    vec3 ldir = normalize(vec3(0.8,0.9,0.6));
+    float diff = clamp(dot(n, ldir), 0.0, 1.0);
+    float rim = pow(1.0 - max(dot(n, -rd), 0.0), 1.5);
+    float glow = 0.25 + 0.75*rim;
+    vec3 base = pal(diff, vec3(0.34,0.30,0.60), vec3(0.3,0.15,0.45), vec3(0.8,0.5,0.2), vec3(0.0,0.2,0.4));
+    col = base + vec3(0.05,0.08,0.10)*glow;
+    col += rim*vec3(0.15,0.45,0.35);
+  }
+  float vig = smoothstep(1.4, 0.2, length(uv));
+  col *= vig;
+  col += 0.003*vec3(hash(uv*200.0));
+
+  gl_FragColor = vec4(pow(col, vec3(0.9)), 1.0);
+}
+`;
+
+function compile(type, src){
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if(!gl.getShaderParameter(s, gl. COMPILE_STATUS)){
+    console.error(gl.getShaderInfoLog(s));
+  }
+  return s;
+}
+const vs = compile(gl.VERTEX_SHADER, vertSrc);
+const fs = compile(gl.FRAGMENT_SHADER, fragSrc);
+const prog = gl.createProgram();
+gl.attachShader(prog, vs);
+gl.attachShader(prog, fs);
+gl.linkProgram(prog);
+gl.useProgram(prog);
+
+const quad = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1,  -1,1, 1,-1, 1,1]), gl. STATIC_DRAW);
+const loc = gl.getAttribLocation(prog, "a");
+gl.enableVertexAttribArray(loc);
+gl.vertexAttribPointer(loc, 2, gl. FLOAT, false, 0, 0);
+
+const uRes = gl.getUniformLocation(prog, "uRes");
+const uTime = gl.getUniformLocation(prog, "uTime");
+const uMouse = gl.getUniformLocation(prog, "uMouse");
+
+let t0 = performance.now();
+let mouse = [0.5, 0.5];
+glCanvas.addEventListener('mousemove', (e)=>{
+  const r = glCanvas.getBoundingClientRect();
+  mouse = [(e.clientX - r.left)/r.width, 1.0 - (e.clientY - r.top)/r.height];
+});
+
+// particles & sprites
+const pctx = particlesCanvas.getContext('2d');
+const sctx = spritesCanvas.getContext('2d');
+const DPR = Math.min(2, window.devicePixelRatio||1);
+const P = Array.from({length:90}, ()=> ({
+  x: Math.random()*particlesCanvas.width,
+  y: Math.random()*particlesCanvas.height,
+  r: 0.5 + Math.random()*1.6,
+  s: 0.15 + Math.random()*0.6
+}));
+
+// orbiting ghost sprites tending the brain
+const SPRITES = [
+  {emoji:"👻", color:"rgba(160,130,255,0.9)", r:90, speed:0.35, phase:0},
+  {emoji:"💜", color:"rgba(200,120,255,0.9)", r:100, speed:-0.25, phase:1.57},
+  {emoji:"🧭", color:"rgba(120,220,200,0.9)", r:76, speed:0.28, phase:3.14},
+  {emoji:"📈", color:"rgba(220,200,120,0.9)", r:84, speed:-0.32, phase:4.71},
+  {emoji:"📜", color:"rgba(200,200,240,0.9)", r:92, speed:0.22, phase:0.8},
+  {emoji:"✨", color:"rgba(240,220,160,0.9)", r:88, speed:-0.27, phase:2.2},
+  {emoji:"🕯️", color:"rgba(250,230,180,0.9)", r:70, speed:0.3, phase:5.0},
+  {emoji:"🧩", color:"rgba(180,210,250,0.9)", r:74, speed:-0.21, phase:1.2},
+  {emoji:"💬", color:"rgba(210,210,255,0.9)", r:96, speed:0.24, phase:2.8},
+  {emoji:"🎯", color:"rgba(255,210,190,0.9)", r:82, speed:-0.29, phase:3.9},
+  {emoji:"🧑‍🤝‍🧑", color:"rgba(220,230,255,0.9)", r:86, speed:0.18, phase:4.4},
+  {emoji:"🛋️", color:"rgba(200,200,220,0.9)", r:78, speed:-0.26, phase:0.3},
+  {emoji:"🐙", id:"cth", color:"rgba(120,255,220,0.95)", r:110, speed:0.12, phase:1.1}
+];
+
+function drawSprites(t){
+  sctx.clearRect(0,0,spritesCanvas.width, spritesCanvas.height);
+  const cx = spritesCanvas.width/2, cy = spritesCanvas.height/2 + 8*DPR;
+  sctx.textAlign="center"; sctx.textBaseline="middle"; sctx.font = (16*DPR)+"px system-ui";
+  SPRITES.forEach(sp=>{
+    const ang = sp.phase + t*sp.speed;
+    const x = cx + Math.cos(ang)*sp.r*DPR;
+    const y = cy + Math.sin(ang)*sp.r*0.6*DPR;
+    sctx.shadowColor = sp.color; sctx.shadowBlur = 14*DPR;
+    sctx.fillText(sp.emoji, x, y);
+    sctx.shadowBlur = 0;
+    sctx.fillStyle = sp.color;
+    sctx.globalAlpha = 0.12;
+    sctx.beginPath(); sctx.arc(x, y, 6*DPR, 0, Math.PI*2); sctx.fill(); sctx.globalAlpha = 1;
+  });
+}
+
+function tick(){
+  const now = performance.now();
+  const t = (now - t0)/1000;
+  gl.uniform2f(uRes, glCanvas.width, glCanvas.height);
+  gl.uniform1f(uTime, t);
+  gl.uniform2f(uMouse, mouse[0], mouse[1]);
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+  // particles
+  pctx.clearRect(0,0,particlesCanvas.width, particlesCanvas.height);
+  pctx.globalCompositeOperation = 'lighter';
+  for(const p of P){
+    p.y -= p.s; if(p.y < -10) { p.y = particlesCanvas.height + 10; p.x = Math.random()*particlesCanvas.width; }
+    pctx.beginPath();
+    pctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+    pctx.fillStyle = 'rgba(160,130,255,0.15)'; pctx.fill();
+    pctx.beginPath();
+    pctx.arc(p.x, p.y, p.r*0.6, 0, Math.PI*2);
+    pctx.fillStyle = 'rgba(60,250,210,0.10)'; pctx.fill();
+  }
+
+  // sprites
+  drawSprites(t);
+
+  requestAnimationFrame(tick);
+}
+tick();
+
+/* === App logic with improved responses & per‑ghost citations === */
+const ghosts = [
+  { id:"cbt", name:"CBT", emoji:"👻", tags:["thought logs","distortions","reframe"], prompt:"Identify automatic thoughts; test; reframe."},
+  { id:"dbt", name:"DBT", emoji:"💜", tags:["distress tolerance","emotion regulation","skills"], prompt:"TIPP, opposite action, wise mind."},
+  { id:"act", name:"ACT", emoji:"🧭", tags:["defusion","values","acceptance"], prompt:"Name thoughts; accept; step toward values."},
+  { id:"bcba", name:"BCBA", emoji:"📈", tags:["ABC analysis","reinforcement","environment"], prompt:"Adjust antecedents; reinforce alternatives."},
+  { id:"phil", name:"Philosophy", emoji:"📜", tags:["stoicism","virtue","agency"], prompt:"Focus on controllables; practice virtues."},
+  { id:"hol", name:"Holistic", emoji:"🌿", tags:["sleep","movement","nutrition"], prompt:"Breath, sunlight, protein+fiber, 7–9h sleep."},
+  { id:"spir", name:"Spiritual", emoji:"✨", tags:["meaning","ritual","service"], prompt:"Gratitude + service; grounding ritual."},
+  { id:"logo", name:"Logotherapy", emoji:"🕯️", tags:["purpose","Frankl","attitude"], prompt:"Create work, love, attitude toward suffering."},
+  { id:"gestalt", name:"Gestalt", emoji:"🧩", tags:["awareness","parts","contact"], prompt:"Stay with sensations; dialog parts."},
+  { id:"cct", name:"Client-Centered", emoji:"💬", tags:["empathy","regard","pace"], prompt:"Self-empathy; reflect; organismic pace."},
+  { id:"mi", name:"MI", emoji:"🎯", tags:["change talk","scaling","next step"], prompt:"Evoke DARN-C; scale confidence."},
+  { id:"ipt", name:"Interpersonal", emoji:"🧑‍🤝‍🧑", tags:["roles","grief","connection"], prompt:"Clarify roles; schedule bids."},
+  { id:"psy", name:"Psychoanalytic", emoji:"🛋️", tags:["patterns","defenses","insight"], prompt:"Map patterns/defenses; experiment safely."},
+  { id:"cth", name:"Cthulhu", emoji:"🐙", tags:["ominous","cryptic","cosmic"], prompt:"Speak in metaphor and caution; invite humility before the unknown; suggest grounded journaling after the omen."}
+];
+
+const perGhostCitations = {
+  cbt: [
+    {label:"CBT overview (NIMH)", url:"https://www.nimh.nih.gov/health/topics/psychotherapies"},
+    {label:"Cognitive restructuring RCTs (PubMed)", url:"https://pubmed.ncbi.nlm.nih.gov/?term=cognitive+restructuring+randomized"},
+    {label:"Beck cognitive model (PubMed)", url:"https://pubmed.ncbi.nlm.nih.gov/?term=beck+cognitive+model"}
+  ],
+  dbt: [
+    {label:"DBT skills & emotion regulation (PubMed)", url:"https://pubmed.ncbi.nlm.nih.gov/?term=dialectical+behavior+therapy+emotion+regulation"},
+    {label:"DBT randomized trials", url:"https://pubmed.ncbi.nlm.nih.gov/?term=DBT+randomized+controlled+trial"}
+  ],
+  act: [
+    {label:"ACT and values‑based action (PubMed)", url:"https://pubmed.ncbi.nlm.nih.gov/?term=Acceptance+and+Commitment+Therapy+values"},
+    {label:"Psychological flexibility research", url:"https://pubmed.ncbi.nlm.nih.gov/?term=psychological+flexibility+ACT"}
+  ],
+  bcba: [
+    {label:"Applied behavior analysis primers", url:"https://pubmed.ncbi.nlm.nih.gov/?term=applied+behavior+analysis+primer"},
+    {label:"Reinforcement strategies", url:"https://pubmed.ncbi.nlm.nih.gov/?term=behavioral+reinforcement+intervention"}
+  ],
+  phil: [
+    {label:"Stoicism & well‑being (PubMed)", url:"https://pubmed.ncbi.nlm.nih.gov/?term=stoicism+wellbeing"}
+  ],
+  hol: [
+    {label:"Sleep duration & mental health (PubMed)", url:"https://pubmed.ncbi.nlm.nih.gov/?term=sleep+duration+mental+health"},
+    {label:"Physical activity & mood", url:"https://pubmed.ncbi.nlm.nih.gov/?term=physical+activity+depression+anxiety"}
+  ],
+  spir: [
+    {label:"Gratitude interventions (PubMed)", url:"https://pubmed.ncbi.nlm.nih.gov/?term=gratitude+intervention+mental+health"}
+  ],
+  logo: [
+    {label:"Logotherapy research", url:"https://pubmed.ncbi.nlm.nih.gov/?term=logotherapy+Frankl"},
+    {label:"Meaning in life & resilience", url:"https://pubmed.ncbi.nlm.nih.gov/?term=meaning+in+life+resilience"}
+  ],
+  gestalt: [
+    {label:"Gestalt therapy processes", url:"https://pubmed.ncbi.nlm.nih.gov/?term=gestalt+therapy+process"}
+  ],
+  cct: [
+    {label:"Client‑centered therapy outcomes", url:"https://pubmed.ncbi.nlm.nih.gov/?term=person+centered+therapy+outcomes"}
+  ],
+  mi: [
+    {label:"Motivational Interviewing evidence", url:"https://pubmed.ncbi.nlm.nih.gov/?term=motivational+interviewing+randomized"}
+  ],
+  ipt: [
+    {label:"Interpersonal Psychotherapy trials", url:"https://pubmed.ncbi.nlm.nih.gov/?term=interpersonal+psychotherapy+randomized"}
+  ],
+  psy: [
+    {label:"Psychodynamic therapy meta‑analyses", url:"https://pubmed.ncbi.nlm.nih.gov/?term=psychodynamic+therapy+meta+analysis"}
+  ],
+  cth: [
+    {label:"Managing uncertainty & intolerance of uncertainty", url:"https://pubmed.ncbi.nlm.nih.gov/?term=intolerance+of+uncertainty+intervention"},
+    {label:"Journaling & mental health", url:"https://pubmed.ncbi.nlm.nih.gov/?term=expressive+writing+mental+health"}
+  ]
+};
+
+const ghostGrid = document.getElementById('ghostGrid');
+const response = document.getElementById('response');
+const question = document.getElementById('question');
+const garden = document.getElementById('garden');
+const lockToggle = document.getElementById('lockToggle');
+const modal = document.getElementById('modal');
+const citeList = document.getElementById('citeList');
+const statusEl = document.getElementById('status');
+
+const aboutBtn = document.getElementById('aboutBtn');
+const aboutModal = document.getElementById('aboutModal');
+const closeAbout = document.getElementById('closeAbout');
+
+const save = (k,v)=>localStorage.setItem(k, JSON.stringify(v));
+const load = (k,def)=>{ try{ return JSON.parse(localStorage.getItem(k)) ?? def }catch{ return def } };
+
+/* Copy‑lock */
+function applyLock(on){
+  if(on){
+    document.body.classList.add('lock-on');
+    document.addEventListener('contextmenu', blockCtx, {capture:true});
+    document.addEventListener('copy', blockEvt, {capture:true});
+  } else {
+    document.body.classList.remove('lock-on');
+    document.removeEventListener('contextmenu', blockCtx, {capture:true});
+    document.removeEventListener('copy', blockEvt, {capture:true});
+  }
+  save('lock', on);
+}
+function blockCtx(e){ e.preventDefault() }
+function blockEvt(e){ e.preventDefault() }
+lockToggle.addEventListener('change', e=>applyLock(e.target.checked));
+applyLock(load('lock', true)); 
+lockToggle.checked = load('lock', true);
+
+/* Freud box */
+const freudBox = document.getElementById('freudBox');
+const freudAvatar = document.getElementById('freudAvatar');
+let boxOpen = false;
+function setBox(open){
+  boxOpen = open;
+  freudBox.classList.toggle('open', open);
+  freudBox.textContent = open ? "🪄" : "📦";
+  save('boxOpen', open);
+}
+freudBox.addEventListener('click', ()=> setBox(!boxOpen));
+freudAvatar.addEventListener('click', ()=>{
+  freudAvatar.style.transform = 'translateY(-6px) rotate(-4deg)';
+  setTimeout(()=>{ freudAvatar.textContent = "🧔‍♂️✨"; }, 120);
+  setTimeout(()=>{ freudAvatar.textContent = "🧔‍♂️‍💼"; freudAvatar.style.transform=''; }, 600);
+});
+
+/* Render ghost cards */
+function renderGhosts(){
+  ghostGrid.innerHTML = '';
+  ghosts.forEach(g=>{
+    const el = document.createElement('div');
+    el.className = 'ghost';
+    el.title = g.tags.join(', ');
+    el.innerHTML = `<div class="aura"></div>
+    <div class="floaters"></div>
+    <div class="emoji">${g.emoji}</div>
+    <div class="name">${g.name}</div>
+    <div class="tags">${g.tags.join(' · ')}</div>`;
+
+    const floaters = el.querySelector('.floaters');
+    g.tags.slice(0,3).forEach((t,i)=>{
+      const chip = document.createElement('div');
+      chip.className='floater';
+      chip.style.setProperty('--x', (i*10-10)+'px');
+      chip.style.setProperty('--y', (i%2?8:-8)+'px');
+      chip.textContent = t;
+      floaters.appendChild(chip);
+    });
+
+    el.addEventListener('mousemove', (e)=>{
+      const rect = el.getBoundingClientRect();
+      const mx = (e.clientX - rect.left)/rect.width;
+      const my = (e.clientY - rect.top)/rect.height;
+      const rx = (my - .5) * -10;
+      const ry = (mx - .5) * 10;
+      el.style.setProperty('--mx', (mx*100)+'%');
+      el.style.setProperty('--my', (my*100)+'%');
+      el.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg) translateZ(0)`;
+    });
+    el.addEventListener('mouseleave', ()=>{
+      el.style.transform = 'rotateX(0deg) rotateY(0deg)';
+    });
+
+    el.addEventListener('click', ()=> answerFrom(g));
+    ghostGrid.appendChild(el);
+  });
+}
+renderGhosts();
+
+/* Brain region inference (textual cue) */
+function inferRegion(q){
+  if(!q) return null;
+  const s = q.toLowerCase();
+  if(s.match(/fear|anxiety|panic|fight|flight/)) return "amygdala (threat & salience)";
+  if(s.match(/planning|focus|motivation|task|organize/)) return "prefrontal cortex (planning/executive)";
+  if(s.match(/memory|recall|remember|learn/)) return "hippocampus (memory & learning)";
+  if(s.match(/reward|dopamine|addiction|craving/)) return "striatum/reward circuits";
+  if(s.match(/empathy|connection|lonely|relationship/)) return "temporal & social cognition networks";
+  return "distributed networks (mind ≠ one part)";
+}
+
+/* Improved response generator */
+function answerFrom(g){
+  const q = (question.value||'').trim();
+  const when = new Date().toLocaleString();
+  const region = inferRegion(q);
+  const header = `### ${g.name} — ${when}`;
+
+  // Core scaffold with less repetition and a tiny plan
+  const guidance = [
+`Focus → ${g.tags.join(', ')}`,
+region ? `Likely brain systems: ${region}` : null,
+`Approach → ${g.prompt}`,
+q ? `Applied to your question — “${q}”:` : `Tip — Add a question above for a tailored application.`,
+planFor(g.id, q)
+  ].filter(Boolean).join("\\n\\n");
+
+  // Flavor for Cthulhu (kept educational)
+  const flavored = (g.id==='cth')
+    ? (`You seek shapes in the midnight sea. The mind is a lighthouse; the beam is narrow.\\n\\n` +
+       `Omen → Beware conclusions drawn in fog.\\n\\n` +
+       `Ritual → Write three lines: (1) the fear you won't say aloud, (2) one small act of care in the next hour, (3) a vow of humility before the unknown.\\n\\n` +
+       (q ? `Bound to: “${q}”.` : `Ask a question to bind this omen.`) + `\\n\\n` +
+       planFor(g.id, q))
+    : guidance;
+
+  response.textContent = `${header}\\n\\n${flavored}\\n\\n— Ghost Buddy`;
+
+  // Update citations modal content for this ghost
+  populateCitations(g.id, q);
+}
+
+/* Tiny heuristic plans per ghost */
+function planFor(id,q){
+  const lower = (q||'').toLowerCase();
+  const day = (t)=>`• ${t}`;
+  switch(id){
+    case 'cbt':
+      return [
+        `Protocol → 3‑column thought log`,
+        day(`Situation → Thought → Balanced Thought (2 minutes each).`),
+        day(`Look for distortions (catastrophizing, mind‑reading).`),
+        day(`Behavioral experiment: tiny test of the balanced thought.`)
+      ].join("\\n");
+    case 'dbt':
+      return [
+        `Protocol → TIPP + opposite action`,
+        day(`Temperature: cool face/forearms 30–60s`),
+        day(`Intense exercise: 60–120s`),
+        day(`Paced breathing: 4‑in / 6‑out for 2 minutes`)
+      ].join("\\n");
+    case 'act':
+      return [
+        `Protocol → Defusion + Values step`,
+        day(`Name the thought: “I'm noticing the thought that …”`),
+        day(`Open up to feelings (allow 90 seconds).`),
+        day(`Do one 5‑minute values action.`)
+      ].join("\\n");
+    case 'bcba':
+      return [
+        `Protocol → ABC tweak`,
+        day(`Antecedent: remove/alter one trigger in your environment.`),
+        day(`Behavior: define the smallest observable step.`),
+        day(`Consequence: reward completion instantly (micro‑reward).`)
+      ].join("\\n");
+    case 'mi':
+      return [
+        `Protocol → DARN‑C`,
+        day(`Write one Desire/Ability/Reason/Need line for change.`),
+        day(`Confidence scale 0–10 → ask “what makes it a ${Math.floor(Math.random()*4)+5} not lower?”`),
+        day(`Pick the next 2‑minute action.`)
+      ].join("\\n");
+    case 'logo':
+      return [
+        `Protocol → Meaning‑making`,
+        day(`Draft a one‑sentence “why” you can carry into discomfort.`),
+        day(`Identify a tiny act of love, work, or attitude today.`)
+      ].join("\\n");
+    case 'phil':
+      return [
+        `Protocol → Stoic triad`,
+        day(`List controllables vs uncontrollables.`),
+        day(`Choose a virtue to practice in the next interaction (e.g., patience).`)
+      ].join("\\n");
+    case 'hol':
+      return [
+        `Protocol → Body basics`,
+        day(`Sunlight + movement (5–10 min).`),
+        day(`Protein + fiber in next meal; caffeine cutoff 8h before bed.`),
+        day(`Wind‑down cue and consistent sleep window.`)
+      ].join("\\n");
+    case 'gestalt':
+      return [
+        `Protocol → Awareness & parts`,
+        day(`Scan: where is tension? Name 3 sensations.`),
+        day(`Two‑chair: let two “parts” each speak 2 lines.`)
+      ].join("\\n");
+    case 'cct':
+      return [
+        `Protocol → Unconditional positive regard (self)`,
+        day(`Write a compassionate reflection addressed to yourself (3 lines).`)
+      ].join("\\n");
+    case 'ipt':
+      return [
+        `Protocol → Connection bids`,
+        day(`Schedule one small social bid today (text/invite).`),
+        day(`Clarify roles/expectations if conflict is brewing.`)
+      ].join("\\n");
+    case 'psy':
+      return [
+        `Protocol → Pattern mapping`,
+        day(`Note repeating triggers/defenses; try one new, safe response.`)
+      ].join("\\n");
+    case 'cth':
+      return [
+        `Protocol → Contain the unknown`,
+        day(`Write the fear, the care act, and the humility vow.`),
+        day(`Grounding: 5‑senses check.`)
+      ].join("\\n");
+    default:
+      return day(`Shrink it: do the 2‑minute version now.`);
+  }
+}
+
+/* Garden */
+function renderGarden(){
+  const seeds = load('seeds',[]);
+  garden.innerHTML = '';
+  if(!seeds.length){ garden.innerHTML = '<div class="muted">No seeds yet. Plant an affirmation or goal.</div>'; return; }
+  seeds.forEach((s,i)=>{
+    const el = document.createElement('div');
+    el.className='seed';
+    el.innerHTML = `<div style="display:flex; justify-content:space-between; gap:8px; align-items:center">
+      <div><strong>🌱 ${s.text}</strong><div class="muted" style="font-size:12px">${new Date(s.t).toLocaleString()} · visits: ${s.v||0}</div></div>
+      <div>
+        <button class="btn ghost" data-act="water" data-i="${i}">Water</button>
+        <button class="btn danger" data-act="delete" data-i="${i}">Delete</button>
+      </div>
+    </div>`;
+    garden.appendChild(el);
+  });
+}
+renderGarden();
+
+function addSeed(text){
+  const seeds = load('seeds',[]);
+  seeds.push({text, t:Date.now(), v:0});
+  save('seeds', seeds);
+  renderGarden();
+}
+
+garden.addEventListener('click', e=>{
+  const btn = e.target.closest('button'); if(!btn) return;
+  const i = +btn.dataset.i;
+  const seeds = load('seeds',[]);
+  if(btn.dataset.act==='delete'){ seeds.splice(i,1); save('seeds',seeds); renderGarden(); return; }
+  if(btn.dataset.act==='water'){ seeds[i].v = (seeds[i].v||0)+1; save('seeds',seeds); renderGarden(); return; }
+});
+
+document.getElementById('plantSeed').addEventListener('click', ()=>{
+  const q = (question.value||'').trim();
+  const text = q || prompt('Write an affirmation or goal:');
+  if(!text) return;
+  addSeed(text);
+});
+
+// Automatic tending loop
+setInterval(()=>{
+  const seeds = load('seeds',[]);
+  if(!seeds.length) return;
+  const i = Math.floor(Math.random()*seeds.length);
+  seeds[i].v = (seeds[i].v||0)+1;
+  save('seeds', seeds);
+  renderGarden();
+}, 10000);
+
+// Suggestions
+document.getElementById('getSuggestions').addEventListener('click', ()=>{
+  const base = ["self-compassion", "values", "acceptance", "exposure ladder", "thought log", "sleep hygiene", "gratitude", "social bid"];
+  alert("Keyword suggestions: " + base.join(", "));
+});
+
+// Cache & import/export
+document.getElementById('clearCache').addEventListener('click', ()=>{
+  if(confirm('Clear all local data?')){
+    localStorage.clear(); renderGarden(); applyLock(true); lockToggle.checked=true;
+  }
+});
+
+document.getElementById('exportSeeds').addEventListener('click', ()=>{
+  const data = JSON.stringify(load('seeds',[]), null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'sagespace-seeds.json';
+  a.rel = 'noopener noreferrer';
+  a.target = '_blank';
+  a.click();
+});
+
+document.getElementById('importSeeds').addEventListener('click', ()=>{
+  const inp = document.createElement('input');
+  inp.type='file'; inp.accept='.json,application/json';
+  inp.onchange = ()=>{
+    const file = inp.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      try{ const seeds = JSON.parse(reader.result); save('seeds',seeds); renderGarden(); alert('Seeds imported.'); }
+      catch{ alert('Invalid file.'); }
+    };
+    reader.readAsText(file);
+  };
+  inp.click();
+});
+
+/* Citations modal (per ghost; also inject query‑specific search) */
+function populateCitations(ghostId, q){
+  const citeList = document.getElementById('citeList');
+  const modal = document.getElementById('modal');
+  citeList.innerHTML = '';
+  const items = (perGhostCitations[ghostId] || []).slice();
+  if(q){
+    const encoded = encodeURIComponent(q);
+    items.unshift({label:`Search PubMed for: ${q}`, url:`https://pubmed.ncbi.nlm.nih.gov/?term=${encoded}`});
+  }
+  items.forEach(c=>{
+    const li = document.createElement('li');
+    li.innerHTML = `<span>🔗</span> <a href="${c.url}" target="_blank" rel="noopener noreferrer">${c.label}</a>`;
+    citeList.appendChild(li);
+  });
+  modal.style.display='flex';
+}
+document.getElementById('citationsBtn').addEventListener('click', ()=>{
+  populateCitations('cbt', (question.value||'').trim());
+});
+document.getElementById('closeModal').addEventListener('click', ()=>document.getElementById('modal').style.display='none');
+document.getElementById('modal').addEventListener('click', (e)=>{ if(e.target===document.getElementById('modal')) document.getElementById('modal').style.display='none'});
+
+// About modal
+document.getElementById('aboutBtn').addEventListener('click', ()=> document.getElementById('aboutModal').style.display='flex');
+document.getElementById('closeAbout').addEventListener('click', ()=> document.getElementById('aboutModal').style.display='none');
+document.getElementById('aboutModal').addEventListener('click', (e)=>{ if(e.target===document.getElementById('aboutModal')) document.getElementById('aboutModal').style.display='none'});
+
+// Venmo donate button
+document.getElementById('donateBtn').addEventListener('click', ()=>{
+  const venmoUser = '@Dougthehuman';
+  const url = `https://venmo.com/${venmoUser}?txn=pay&note=Sage%20Space%20A.I.%20Donation`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  a.click();
+});
+
+
+// Legal modal
+</script>
+
+<div class="modal" id="legalModal">
+  <div class="inner">
+    <div style="display:flex; justify-content:space-between; align-items:center">
+      <div style="font-weight:800">Sage Space A.I. — Legal & Disclaimers</div>
+      <button class="btn ghost" id="closeLegal">Close</button>
+    </div>
+    <div class="muted" style="margin-top:6px">
+      <p><b>Educational Only.</b> Sage Space A.I. provides general, educational information. It is <b>not</b> medical care, mental health treatment, psychotherapy, legal advice, financial advice, or a substitute for professional services.</p>
+      <p><b>No Professional-Client Relationship.</b> Using this app does not create a therapist–client, doctor–patient, attorney–client, or advisor relationship.</p>
+      <p><b>Not for Emergencies.</b> If you are in crisis or may harm yourself or others, call local emergency services or a crisis line immediately (e.g., 988 in the U.S.).</p>
+      <p><b>Research Links.</b> Citation buttons open third‑party websites (e.g., PubMed/NIH). Those sites are independent; content there may change. Links are for convenience and do not imply endorsement. You are responsible for evaluating sources.</p>
+      <p><b>No Warranties.</b> The app is provided “as is” without warranties of any kind. We do not guarantee accuracy, completeness, or fitness for any purpose.</p>
+      <p><b>Limitation of Liability.</b> To the fullest extent permitted by law, the creators/contributors are not liable for any direct, indirect, incidental, or consequential damages arising from use of the app.</p>
+      <p><b>User Responsibility.</b> You are responsible for your decisions and use of the information. Consult licensed professionals for personal, medical, legal, or financial matters.</p>
+      <p><b>Jurisdiction.</b> Use of the app constitutes acceptance of these terms. Disputes shall be governed by the laws of your state/country of residence unless mandatory local law provides otherwise.</p>
+      <p class="muted">This text is general information, not legal advice. For specific legal questions, consult an attorney.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// Wire up legal modal at end so elements exist
+(function(){
+  const legalBtn = document.getElementById('legalBtn');
+  const legalModal = document.getElementById('legalModal');
+  const closeLegal = document.getElementById('closeLegal');
+  if (legalBtn) legalBtn.addEventListener('click', ()=> legalModal.style.display='flex');
+  if (closeLegal) closeLegal.addEventListener('click', ()=> legalModal.style.display='none');
+  if (legalModal) legalModal.addEventListener('click', (e)=>{ if(e.target===legalModal) legalModal.style.display='none'});
+})();
+</script>
+
+</body>
+</html>
